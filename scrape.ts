@@ -34,7 +34,7 @@ async function scrapeGoogleAndNavigateToZillow(searchQuery: String) {
     const pageUrls = await extractPageUrls(page);
     for (const pageUrl of pageUrls) {
         const pageListingUrls = await scrapeListingUrls(browser, pageUrl);
-        console.log(pageListingUrls);
+        
         listingUrls = listingUrls.concat(pageListingUrls);
     }
     await page.close();
@@ -43,7 +43,7 @@ async function scrapeGoogleAndNavigateToZillow(searchQuery: String) {
     const listingsData: ListingData[] = [];
     for (const listingUrl of listingUrls) {
         const listingData = await scrapeListingData(browser, listingUrl);
-        console.log(listingData);
+        
         if(!listingData) continue;
         listingsData.push(listingData);
     }
