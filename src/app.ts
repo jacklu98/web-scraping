@@ -1,17 +1,23 @@
-import * as fs from 'fs';
-import * as express from 'express';
+import fs from 'fs';
+import express, {Express, Request, Response} from 'express';
+import { scrapeHomeListing } from './scrape';
 
-const app: express.Express = express();
+const app: Express = express();
 const PORT = 3000;
 
-app.get('/', (req: express.Request, res: express.Response)=>{
-  res.send("web scraping");
-})
+app.get('/', (req: Request, res: Response)=>{
+  res.send("hello world");
+});
 
-app.get('/retrieve-home-listing', async (req: express.Request, res: express.Response) => {
+app.get('/scrape', async (req: Request, res: Response)=>{
+  res.send("start scraping");
+  await scrapeHomeListing();
+});
+
+app.get('/retrieve-home-listing', async (req: Request, res: Response) => {
     const page = req.query?.page as string;
     const pageSize = req.query?.pageSize as string;
-    fs.readFile('data.json', 'utf8', (err, jsonString) => {
+    fs.readFile('src/data.json', 'utf8', (err, jsonString) => {
       if (err) {
         console.error('Error reading file:', err);
         return;

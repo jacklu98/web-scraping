@@ -1,12 +1,17 @@
 # web-scarping-puppeteer service
-use `npm install` to install all dependencies
-> scrape.ts
-use `node scrape.js` to start sraping the home listing data in the website and save such data into data.json file.
+use `npm install` to install all dependencies \n
+use `npm start` to start the service
 
-> data.json
-store searched home listing information, with format { price, address, bedrooms, bathrooms, squareFootage }.
+use `http://localhost:3000/retrieve-home-listing` to get all data.
+Or use `http://localhost:3000/retrieve-home-listing?page=22&pageSize=10` with query paramaters page/pageSize to get information as developer wants
+
+use `http://localhost:3000/scrape` to start scraping, search and extract home listing information data and store in json.
 
 > src/app.ts
-use `npx ts-node src/app.ts` to start the web service server.
-use `http://localhost:3000/retrieve-home-listing` to get all data.
-Or use `http://localhost:3000/retrieve-home-listing?page=22&pageSize=10` query paramaters page/pageSize to get any page information as developer wants
+The web service server.
+
+> src/scrape.ts
+start sraping the home listing data in the website and save such data into data.json file.
+
+> src/data.json
+store searched home listing information, with format { price, address, bedrooms, bathrooms, squareFootage }.

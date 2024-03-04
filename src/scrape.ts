@@ -1,17 +1,26 @@
-const fs = require('fs');
-const puppeteer = require('puppeteer-extra');
-const Stealth = require('puppeteer-extra-plugin-stealth');
-const userAgent = require('user-agents');
- 
-puppeteer.use(Stealth());
+import fs from 'fs';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import userAgent from 'user-agents';
 
-async function scrapeGoogleAndNavigateToZillow(searchQuery) {
+interface ListingData {
+    price: string,
+    address: string,
+    bedrooms: string,
+    bathrooms: string,
+    squareFootage: string
+}
+
+puppeteer.use(StealthPlugin());
+
+const BASE_URL = "https://www.homes.com";
+
+export async function scrapeHomeListing() {
     const browser = await puppeteer.launch({headless: true});
     const page = await browser.newPage();
-
-    const baseURL = "https://www.homes.com/"
+    console.log("start scrape");
     await page.setUserAgent(userAgent.toString());
-    await page.goto(baseURL);
+    await page.goto(BASE_URL);
     await page.waitForSelector('input[type="text"]');
 
     // Search for homes of city
@@ -22,7 +31,7 @@ async function scrapeGoogleAndNavigateToZillow(searchQuery) {
     
     // Extract URLs of the listings on the page
     let listingUrls = await extractListingUrls(page);
-    // Get more listings through pagination
+
     const pageUrls = await extractPageUrls(page);
     for (const pageUrl of pageUrls) {
         const pageListingUrls = await scrapeListingUrls(browser, pageUrl);
@@ -32,7 +41,7 @@ async function scrapeGoogleAndNavigateToZillow(searchQuery) {
     await page.close();
 
     // Extract information from accessing pages of URLs
-    const listingsData = [];
+    const listingsData: ListingData[] = [];
     for (const listingUrl of listingUrls) {
         const listingData = await scrapeListingData(browser, listingUrl);
         
@@ -40,7 +49,7 @@ async function scrapeGoogleAndNavigateToZillow(searchQuery) {
         listingsData.push(listingData);
     }
     const data = JSON.stringify(listingsData);
-    fs.writeFile('data.json', data, (err) => {
+    fs.writeFile('src/data.json', data, (err) => {
         if(err) {
             console.error(err);
             return;
@@ -49,29 +58,30 @@ async function scrapeGoogleAndNavigateToZillow(searchQuery) {
     });
 
     await browser.close();
+    return data;
 }
 
-async function extractListingUrls(page) {
+async function extractListingUrls(page: any): Promise<string[]> {
     const listingUrls = await page.evaluate(() => {
         const listingElements = document.querySelectorAll('.for-sale-content-container > a[href*="property"]');
         const urls = Array.from(listingElements).map(element => element.getAttribute('href'));
         return urls.filter(url => url?.startsWith('/'));
     });
     // attach complete URL
-    return listingUrls.map(url => 'https://www.homes.com' + url);
+    return listingUrls.map((url: string) => BASE_URL + url);
 }
 
-async function extractPageUrls(page) {
+async function extractPageUrls(page: any): Promise<string[]> {
     const pageUrls = await page.evaluate(() => {
         const pageElements = document.querySelectorAll('li > a[role="link"]');
         const urls = Array.from(pageElements).map(element => element.getAttribute('href'));
         return urls.filter(url => url?.startsWith('/'));
     });
     // attach complete URL
-    return pageUrls.map(url => 'https://www.homes.com' + url);
+    return pageUrls.map((url: string) => BASE_URL + url);
 }
 
-async function scrapeListingUrls(browser, pageUrl) {
+async function scrapeListingUrls(browser: any, pageUrl: string): Promise<string[]> {
     const page = await browser.newPage();
     await page.goto(pageUrl);
     await page.waitForSelector('a[href*="property"]');
@@ -83,33 +93,31 @@ async function scrapeListingUrls(browser, pageUrl) {
     return listingUrls;
 }
 
-async function scrapeListingData(browser, listingUrl) {
+async function scrapeListingData(browser: any, listingUrl: string): Promise<ListingData | undefined> {
     const page = await browser.newPage();
     await page.goto(listingUrl);
     await page.waitForSelector('.listing-profile-container');
 
-    // Extract house information
-    try {
-        const price = await page.$eval('.property-info-price', el => el.textContent);
-        const mainAddress = await page.$eval('.property-info-address-main', el => el.textContent);
-        const city = await page.$eval('.property-info-address-citystatezip > a:first-child', el => el.textContent);
-        const zipcode = await page.$eval('.property-info-address-citystatezip > a:nth-child(2)', el => el.textContent);
-        const bedrooms = await page.$eval('.beds > .property-info-feature-detail', el => el.textContent);
-        const baths = await page.$eval('.divider ~ .property-info-feature > .property-info-feature-detail', el => el.textContent);
-        const squareFootage = await page.$eval('.sqft > .property-info-feature-detail', el => el.textContent);
-        
+    try{
+        // Extract house information
+        const price = await page.$eval('.property-info-price', (el: HTMLElement) => el.textContent);
+        const mainAddress = await page.$eval('.property-info-address-main', (el: HTMLElement) => el.textContent);
+        const city = await page.$eval('.property-info-address-citystatezip > a:first-child', (el: HTMLElement) => el.textContent);
+        const zipcode = await page.$eval('.property-info-address-citystatezip > a:nth-child(2)', (el: HTMLElement) => el.textContent);
+        const bedrooms = await page.$eval('.beds > .property-info-feature-detail', (el: HTMLElement) => el.textContent);
+        const bathrooms = await page.$eval('.divider ~ .property-info-feature > .property-info-feature-detail', (el: HTMLElement) => el.textContent);
+        const squareFootage = await page.$eval('.sqft > .property-info-feature-detail', (el: HTMLElement) => el.textContent);
+
         await page.close();
 
         return {
             price,
             address: mainAddress.replace(/\n/g, '').trim() +' '+ city.replace(/\n/g, '').trim() +' '+ zipcode.replace(/\n/g, '').trim(),
             bedrooms,
-            baths,
+            bathrooms,
             squareFootage
         };
     } catch(err) {
         return;
     }
 }
-
-scrapeGoogleAndNavigateToZillow('top home listing websites');
