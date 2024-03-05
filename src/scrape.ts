@@ -1,14 +1,15 @@
 import fs from 'fs';
+import { Browser, Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import userAgent from 'user-agents';
 
 interface ListingData {
-    price: string,
-    address: string,
-    bedrooms: string,
-    bathrooms: string,
-    squareFootage: string
+    price: string | null,
+    address: string | null,
+    bedrooms: string | null,
+    bathrooms: string | null,
+    squareFootage: string | null
 }
 
 puppeteer.use(StealthPlugin());
@@ -61,27 +62,27 @@ export async function scrapeHomeListing() {
     return data;
 }
 
-async function extractListingUrls(page: any): Promise<string[]> {
+async function extractListingUrls(page: Page): Promise<string[]> {
     const listingUrls = await page.evaluate(() => {
         const listingElements = document.querySelectorAll('.for-sale-content-container > a[href*="property"]');
         const urls = Array.from(listingElements).map(element => element.getAttribute('href'));
         return urls.filter(url => url?.startsWith('/'));
     });
     // attach complete URL
-    return listingUrls.map((url: string) => BASE_URL + url);
+    return listingUrls.map((url: string | null) => url ? (BASE_URL + url) : BASE_URL);
 }
 
-async function extractPageUrls(page: any): Promise<string[]> {
+async function extractPageUrls(page: Page): Promise<string[]> {
     const pageUrls = await page.evaluate(() => {
         const pageElements = document.querySelectorAll('li > a[role="link"]');
         const urls = Array.from(pageElements).map(element => element.getAttribute('href'));
         return urls.filter(url => url?.startsWith('/'));
     });
     // attach complete URL
-    return pageUrls.map((url: string) => BASE_URL + url);
+    return pageUrls.map((url: string | null) => url ? (BASE_URL + url) : BASE_URL);
 }
 
-async function scrapeListingUrls(browser: any, pageUrl: string): Promise<string[]> {
+async function scrapeListingUrls(browser: Browser, pageUrl: string): Promise<string[]> {
     const page = await browser.newPage();
     await page.goto(pageUrl);
     await page.waitForSelector('a[href*="property"]');
@@ -93,26 +94,26 @@ async function scrapeListingUrls(browser: any, pageUrl: string): Promise<string[
     return listingUrls;
 }
 
-async function scrapeListingData(browser: any, listingUrl: string): Promise<ListingData | undefined> {
+async function scrapeListingData(browser: Browser, listingUrl: string): Promise<ListingData | undefined> {
     const page = await browser.newPage();
     await page.goto(listingUrl);
     await page.waitForSelector('.listing-profile-container');
 
     try{
         // Extract house information
-        const price = await page.$eval('.property-info-price', (el: HTMLElement) => el.textContent);
-        const mainAddress = await page.$eval('.property-info-address-main', (el: HTMLElement) => el.textContent);
-        const city = await page.$eval('.property-info-address-citystatezip > a:first-child', (el: HTMLElement) => el.textContent);
-        const zipcode = await page.$eval('.property-info-address-citystatezip > a:nth-child(2)', (el: HTMLElement) => el.textContent);
-        const bedrooms = await page.$eval('.beds > .property-info-feature-detail', (el: HTMLElement) => el.textContent);
-        const bathrooms = await page.$eval('.divider ~ .property-info-feature > .property-info-feature-detail', (el: HTMLElement) => el.textContent);
-        const squareFootage = await page.$eval('.sqft > .property-info-feature-detail', (el: HTMLElement) => el.textContent);
+        const price = await page.$eval('.property-info-price', (el: Element) => el.textContent);
+        const mainAddress = await page.$eval('.property-info-address-main', (el: Element) => el.textContent);
+        const city = await page.$eval('.property-info-address-citystatezip > a:first-child', (el: Element) => el.textContent);
+        const zipcode = await page.$eval('.property-info-address-citystatezip > a:nth-child(2)', (el: Element) => el.textContent);
+        const bedrooms = await page.$eval('.beds > .property-info-feature-detail', (el: Element) => el.textContent);
+        const bathrooms = await page.$eval('.divider ~ .property-info-feature > .property-info-feature-detail', (el: Element) => el.textContent);
+        const squareFootage = await page.$eval('.sqft > .property-info-feature-detail', (el: Element) => el.textContent);
 
         await page.close();
 
         return {
             price,
-            address: mainAddress.replace(/\n/g, '').trim() +' '+ city.replace(/\n/g, '').trim() +' '+ zipcode.replace(/\n/g, '').trim(),
+            address: mainAddress?.replace(/\n/g, '').trim() +' '+ city?.replace(/\n/g, '').trim() +' '+ zipcode?.replace(/\n/g, '').trim(),
             bedrooms,
             bathrooms,
             squareFootage
